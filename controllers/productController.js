@@ -4,7 +4,6 @@ const Firm = require('../models/Firm')
 const path = require('path');
 
 
-
 const storage = multer.diskStorage({
     destination: function(req, file, cb) {
         cb(null, 'uploads/'); // Destination folder where the uploaded images will be stored
@@ -18,7 +17,8 @@ const upload = multer({ storage: storage });
 
 const addProduct = async(req, res) => {
     try {
-        const { productName, price, category, bestSeller, description } = req.body;
+        const { productName, price, description } = req.body;
+        let { category, bestSeller } = req.body;
         const image = req.file ? req.file.filename : undefined;
 
         const firmId = req.params.firmId;
@@ -26,6 +26,18 @@ const addProduct = async(req, res) => {
 
         if (!firm) {
             return res.status(404).json({ error: "No firm found" });
+        }
+
+        // Normalize category to array (checkboxes may send single string or multiple)
+        if (!category) {
+            category = [];
+        } else if (typeof category === 'string') {
+            category = [category];
+        }
+
+        // Normalize bestSeller to boolean (comes as string from form data)
+        if (typeof bestSeller === 'string') {
+            bestSeller = bestSeller === 'true';
         }
 
         const product = new Product({
@@ -39,10 +51,9 @@ const addProduct = async(req, res) => {
         })
 
         const savedProduct = await product.save();
-        firm.products.push(savedProduct);
+        firm.products.push(savedProduct._id);
 
-
-        await firm.save()
+        await firm.save();
 
         res.status(200).json(savedProduct)
 
@@ -86,6 +97,5 @@ const deleteProductById = async(req, res) => {
         res.status(500).json({ error: "Internal server error" })
     }
 }
-
 
 module.exports = { addProduct: [upload.single('image'), addProduct], getProductByFirm, deleteProductById };
